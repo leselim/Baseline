@@ -128,8 +128,7 @@
   }
 
   function badge(text, kind) {
-    return '<span class="badge ' + (kind ? 'badge--' + kind : '') + '">' +
-      (kind === 'live' ? '<span class="dot dot--live"></span>' : '') + esc(text) + '</span>';
+    return '<span class="badge ' + (kind ? 'badge--' + kind : '') + '">' + esc(text) + '</span>';
   }
 
   BL.ui = {
