@@ -215,8 +215,13 @@
         (s.tip ? ' data-tip="' + esc(s.tip(d)) + '"' : '') + '/>';
     });
     if (s.months) {
+      var lastX = -999;
       s.months.forEach(function (mo) {
-        out += label(m.l + mo.col * (size + gap), m.t - 4, mo.label, { size: 10 });
+        var lx = m.l + mo.col * (size + gap);
+        if (lx - lastX >= 30) {
+          out += label(lx, m.t - 4, mo.label, { size: 10 });
+          lastX = lx;
+        }
       });
     }
     return out + '</svg>';

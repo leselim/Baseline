@@ -28,11 +28,15 @@
   function render() {
     var totalRecords = SOURCES.reduce(function (a, s) { return a + s.records; }, 0);
     var months = [];
+    var lastCol = -99;
     D.days.forEach(function (d, i) {
       if (i % 7 === 0) {
         var col = i / 7;
         var label = d.date.toLocaleDateString('en-ZA', { month: 'short' });
-        if (!months.length || months[months.length - 1].label !== label) months.push({ col: col, label: label });
+        if (!months.length || (months[months.length - 1].label !== label && col - lastCol >= 2)) {
+          months.push({ col: col, label: label });
+          lastCol = col;
+        }
       }
     });
 
