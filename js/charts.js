@@ -52,9 +52,14 @@
   /* ------------------------------------------------------------------- line */
   function line(w, h, s) {
     var vals = s.values, labels = s.labels || [];
-    var m = { t: 14, r: 14, b: 26, l: 44 };
+    var hasBaselineLabel = s.baseline !== undefined && s.baselineLabel && w > 420;
+    var m = { t: 14, r: hasBaselineLabel ? 115 : 14, b: 26, l: 44 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    if (s.baseline !== undefined) {
+      min = Math.min(min, s.baseline);
+      max = Math.max(max, s.baseline);
+    }
     var span = max - min || 1;
     min -= span * 0.18; max += span * 0.18;
     if (s.zero) min = 0;
@@ -66,15 +71,15 @@
     for (var g = 0; g <= 2; g++) {
       var gv = min + ((max - min) / 2) * g;
       var gy = y(gv).toFixed(1);
-      out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + C.soft + '"/>';
+      out += '<line x1="' + m.l + '" x2="' + (w - 8) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + C.soft + '"/>';
       out += label(m.l - 8, +gy + 3.5, s.fmtAxis ? s.fmtAxis(gv) : Math.round(gv), { anchor: 'end' });
     }
     // the baseline: personal average across the whole record
     if (s.baseline !== undefined && s.baseline >= min && s.baseline <= max) {
       var by = y(s.baseline).toFixed(1);
-      out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel +
+      out += '<line x1="' + m.l + '" x2="' + (w - 8) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel +
         '" stroke-width="1" stroke-dasharray="2 4" opacity="0.85"/>';
-      if (w > 420) out += label(w - m.r, +by - 7, s.baselineLabel || 'baseline', { anchor: 'end', size: 10.5, fill: C.steel });
+      if (hasBaselineLabel) out += label(w - 8, +by - 7, s.baselineLabel || 'baseline', { anchor: 'end', size: 10.5, fill: C.steel });
     }
     var d = vals.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ');
     out += '<path d="' + d + ' L' + x(vals.length - 1).toFixed(1) + ' ' + (m.t + ih) + ' L' + m.l + ' ' + (m.t + ih) + ' Z" fill="' + C.sky + '" opacity="0.08"/>';
@@ -97,9 +102,11 @@
   /* ------------------------------------------------------------------- bars */
   function bars(w, h, s) {
     var items = s.items;
-    var m = { t: 14, r: 8, b: 28, l: 46 };
+    var hasBaselineLabel = s.baseline && s.baselineLabel && w > 420;
+    var m = { t: 14, r: hasBaselineLabel ? 78 : 8, b: 28, l: 46 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
-    var max = niceMax(Math.max.apply(null, items.map(function (i) { return i.value; })));
+    var maxVal = Math.max.apply(null, items.map(function (i) { return i.value; }).concat(s.baseline ? [s.baseline] : []));
+    var max = niceMax(maxVal);
     var step = iw / items.length;
     var bw = Math.min(46, step * 0.56);
     var y = function (v) { return m.t + ih - (v / max) * ih; };
@@ -107,13 +114,12 @@
     var out = '<svg viewBox="0 0 ' + w + ' ' + h + '" height="' + h + '" role="img" aria-label="' + esc(s.aria || 'Comparison by day') + '">';
     for (var g = 0; g <= 2; g++) {
       var gv = (max / 2) * g, gy = y(gv).toFixed(1);
-      out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + (g === 0 ? C.line : C.soft) + '"/>';
+      out += '<line x1="' + m.l + '" x2="' + (w - 8) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + (g === 0 ? C.line : C.soft) + '"/>';
       out += label(m.l - 8, +gy + 3.5, s.fmtAxis ? s.fmtAxis(gv) : Math.round(gv), { anchor: 'end' });
     }
     if (s.baseline) {
       var by = y(s.baseline).toFixed(1);
-      out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel + '" stroke-width="1" stroke-dasharray="2 4"/>';
-      if (w > 420) out += label(w - m.r, +by - 7, s.baselineLabel || 'your average', { anchor: 'end', size: 10.5, fill: C.steel });
+      out += '<line x1="' + m.l + '" x2="' + (w - 8) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel + '" stroke-width="1" stroke-dasharray="2 4"/>';
     }
     items.forEach(function (it, i) {
       var cx = m.l + step * i + step / 2;
@@ -124,6 +130,10 @@
         (it.tip ? ' data-tip="' + esc(it.tip) + '"' : '') + '/>';
       out += label(cx, h - 9, it.label, { anchor: 'middle', fill: it.highlight ? C.ink : C.text3, weight: it.highlight ? 500 : 400 });
     });
+    if (s.baseline && hasBaselineLabel) {
+      var by = y(s.baseline).toFixed(1);
+      out += label(w - 8, +by - 7, s.baselineLabel || 'your average', { anchor: 'end', size: 10.5, fill: C.steel });
+    }
     return out + '</svg>';
   }
 
