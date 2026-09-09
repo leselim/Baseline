@@ -53,8 +53,8 @@
   /* ------------------------------------------------------------------- line */
   function line(w, h, s) {
     var vals = s.values, labels = s.labels || [];
-    var hasBaselineLabel = s.baseline !== undefined && s.baselineLabel && w > 420;
-    var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 148 : 14, b: 26, l: 44 };
+    var hasBaselineLabel = s.baseline !== undefined && s.baselineLabel && w >= 300;
+    var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 145 : 14, b: 26, l: 44 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
     if (s.baseline !== undefined) {
@@ -112,7 +112,7 @@
   /* ------------------------------------------------------------------- bars */
   function bars(w, h, s) {
     var items = s.items;
-    var hasBaselineLabel = s.baseline && s.baselineLabel && w > 420;
+    var hasBaselineLabel = s.baseline && s.baselineLabel && w >= 300;
     var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 85 : 8, b: 28, l: 46 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var maxVal = Math.max.apply(null, items.map(function (i) { return i.value; }).concat(s.baseline ? [s.baseline] : []));
