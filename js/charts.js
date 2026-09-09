@@ -24,9 +24,10 @@
   }
   function label(x, y, text, opts) {
     opts = opts || {};
+    var strokeAttr = opts.halo ? ' stroke="' + (typeof opts.halo === 'string' ? opts.halo : '#F4F6F8') + '" stroke-width="4" paint-order="stroke fill" stroke-linejoin="round"' : '';
     return '<text x="' + x + '" y="' + y + '" fill="' + (opts.fill || C.text3) + '" font-size="' + (opts.size || 11) +
       '" text-anchor="' + (opts.anchor || 'start') + '" font-weight="' + (opts.weight || 400) +
-      '" letter-spacing="' + (opts.tracking || 0) + '">' + esc(text) + '</text>';
+      '" letter-spacing="' + (opts.tracking || 0) + '"' + strokeAttr + '>' + esc(text) + '</text>';
   }
 
   /* -------------------------------------------------------------- sparkline */
@@ -53,7 +54,7 @@
   function line(w, h, s) {
     var vals = s.values, labels = s.labels || [];
     var hasBaselineLabel = s.baseline !== undefined && s.baselineLabel && w > 420;
-    var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 115 : 14, b: 26, l: 44 };
+    var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 148 : 14, b: 26, l: 44 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
     if (s.baseline !== undefined) {
@@ -79,7 +80,7 @@
       var by = y(s.baseline).toFixed(1);
       out += '<line x1="' + m.l + '" x2="' + (w - 8) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel +
         '" stroke-width="1" stroke-dasharray="2 4" opacity="0.85"/>';
-      if (hasBaselineLabel) out += label(w - 8, +by - 10, s.baselineLabel || 'baseline', { anchor: 'end', size: 10.5, fill: C.steel });
+      if (hasBaselineLabel) out += label(w - 8, +by - 10, s.baselineLabel || 'baseline', { anchor: 'end', size: 10.5, fill: C.steel, halo: true });
     }
     var d = vals.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ');
     out += '<path d="' + d + ' L' + x(vals.length - 1).toFixed(1) + ' ' + (m.t + ih) + ' L' + m.l + ' ' + (m.t + ih) + ' Z" fill="' + C.sky + '" opacity="0.08"/>';
@@ -112,7 +113,7 @@
   function bars(w, h, s) {
     var items = s.items;
     var hasBaselineLabel = s.baseline && s.baselineLabel && w > 420;
-    var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 78 : 8, b: 28, l: 46 };
+    var m = { t: hasBaselineLabel ? 20 : 14, r: hasBaselineLabel ? 85 : 8, b: 28, l: 46 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var maxVal = Math.max.apply(null, items.map(function (i) { return i.value; }).concat(s.baseline ? [s.baseline] : []));
     var max = niceMax(maxVal);
@@ -141,7 +142,7 @@
     });
     if (s.baseline && hasBaselineLabel) {
       var by = y(s.baseline).toFixed(1);
-      out += label(w - 8, +by - 10, s.baselineLabel || 'your average', { anchor: 'end', size: 10.5, fill: C.steel });
+      out += label(w - 8, +by - 10, s.baselineLabel || 'your average', { anchor: 'end', size: 10.5, fill: C.steel, halo: true });
     }
     return out + '</svg>';
   }
