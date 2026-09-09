@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in · Baseline</title>
+<meta name="theme-color" content="#001D39">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/components.css">
+<style>
+  body { background: var(--surface); }
+  .auth { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+  .auth__form { display: flex; flex-direction: column; justify-content: space-between; padding: 40px 48px; }
+  .auth__inner { max-width: 360px; width: 100%; margin: auto 0; }
+  .auth__aside {
+    background: var(--surface-ink); color: #fff;
+    padding: 40px 48px; display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .auth__quote { font-size: 22px; line-height: 1.45; letter-spacing: -0.02em; font-weight: 400; max-width: 26ch; }
+  .auth__stat { display: flex; gap: 44px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--line-ink); }
+  .auth__stat div span { display: block; }
+  .auth__statv { font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .auth__statl { font-size: 11px; letter-spacing: 0.085em; text-transform: uppercase; color: var(--text-on-ink-3); margin-top: 4px; }
+  .auth label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+  .auth .field-block + .field-block { margin-top: 16px; }
+  @media (max-width: 860px) {
+    .auth { grid-template-columns: 1fr; }
+    .auth__aside { order: -1; padding: 28px 24px 32px; }
+    .auth__quote { font-size: 18px; }
+    .auth__form { padding: 32px 24px 48px; }
+    .auth__stat { margin-top: 28px; gap: 32px; }
+  }
+</style>
+</head>
+<body>
+<main class="auth">
+  <section class="auth__form">
+    <a href="index.html" aria-label="Baseline, home">
+      <span class="wordmark wordmark--ink"><span>Baseline</span><span class="rule"></span></span>
+    </a>
+
+    <div class="auth__inner">
+      <h1 class="t-section" style="margin-bottom:10px">Sign in</h1>
+      <p class="t-small" style="margin-bottom:28px">Your record picks up where it left off.</p>
+
+      <div class="field-block">
+        <label for="email">Email</label>
+        <input class="input" id="email" type="email" value="nina@abrahams.co.za" autocomplete="email">
+      </div>
+      <div class="field-block">
+        <label for="pw">Password</label>
+        <input class="input" id="pw" type="password" value="behaviour" autocomplete="current-password">
+      </div>
+
+      <a class="btn" href="index.html" style="margin-top:24px;width:100%;justify-content:center">Continue</a>
+
+      <p class="t-fine" style="margin-top:20px">
+        New here? <a href="index.html" style="color:var(--deep);border-bottom:1px solid var(--pale)">Start a record</a>.
+        The first patterns appear after about three weeks of data.
+      </p>
+    </div>
+
+    <p class="t-fine">Cape Town · Data stays in your account</p>
+  </section>
+
+  <aside class="auth__aside">
+    <p class="auth__quote">The benchmark is not eight hours a night. It is what you normally do, and what happens when you don't.</p>
+    <div class="auth__stat">
+      <div><span class="auth__statv">133</span><span class="auth__statl">Days recorded</span></div>
+      <div><span class="auth__statv">4</span><span class="auth__statl">Patterns tracked</span></div>
+      <div><span class="auth__statv">2</span><span class="auth__statl">Experiments run</span></div>
+    </div>
+  </aside>
+</main>
+</body>
+</html>

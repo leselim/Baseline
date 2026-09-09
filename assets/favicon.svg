@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="10" fill="#001D39"/>
+  <text x="32" y="40" font-family="Geist, Inter, Helvetica, Arial, sans-serif" font-size="30" font-weight="500"
+        letter-spacing="-1" text-anchor="middle" fill="#FFFFFF">B</text>
+  <rect x="18" y="46" width="28" height="1.6" fill="#FFFFFF" opacity="0.55"/>
+</svg>
