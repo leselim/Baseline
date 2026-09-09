@@ -31,11 +31,12 @@
     var lastX = -999;
     var colWidth = 16.5; // cell 14 + gap 2.5
     var m_l = 30; // left margin
-    var minSpacing = 20; // minimum px between label starts to prevent overlap
+    var minSpacing = 19.5; // minimum px between label starts to prevent character overlap
 
     D.days.forEach(function (d, i) {
-      var isNewMonth = (i === 0 || d.date.getMonth() !== D.days[i - 1].date.getMonth());
-      if (isNewMonth) {
+      var isFirst = (i === 0);
+      var isNewMonth = (i > 0 && d.date.getMonth() !== D.days[i - 1].date.getMonth());
+      if (isFirst || isNewMonth) {
         var label = d.date.toLocaleDateString('en-ZA', { month: 'short' });
         if (label === 'Sep') label = 'Sept';
         var exactCol = i / 7.0;
