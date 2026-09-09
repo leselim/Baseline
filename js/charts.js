@@ -140,7 +140,8 @@
   /* ---------------------------------------------------------------- scatter */
   function scatter(w, h, s) {
     var pts = s.points;
-    var m = { t: 16, r: 16, b: 40, l: 56 };
+    var hasYLabel = !!s.yLabel;
+    var m = { t: hasYLabel ? 32 : 16, r: 16, b: 40, l: 56 };
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; });
     var xmin = Math.min.apply(null, xs), xmax = Math.max.apply(null, xs);
@@ -172,7 +173,9 @@
         '" opacity="' + (p.accent ? 0.95 : 0.6) + '"' + (p.tip ? ' data-tip="' + esc(p.tip) + '"' : '') + '/>';
     });
     out += label(w - m.r, h - 3, s.xLabel, { anchor: 'end', size: 11, fill: C.steel });
-    out += label(m.l - 46, m.t - 4, s.yLabel, { anchor: 'start', size: 11, fill: C.steel });
+    if (s.yLabel) {
+      out += label(m.l - 46, 12, s.yLabel, { anchor: 'start', size: 11, fill: C.steel });
+    }
     return out + '</svg>';
   }
 
