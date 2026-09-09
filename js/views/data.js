@@ -28,19 +28,22 @@
   function render() {
     var totalRecords = SOURCES.reduce(function (a, s) { return a + s.records; }, 0);
     var months = [];
-    var lastCol = -99;
+    var lastX = -999;
+    var colWidth = 16.5; // cell 14 + gap 2.5
+    var m_l = 30; // left margin
+    var minSpacing = 20; // minimum px between label starts to prevent overlap
+
     D.days.forEach(function (d, i) {
-      if (i % 7 === 0) {
-        var col = i / 7;
+      var isNewMonth = (i === 0 || d.date.getMonth() !== D.days[i - 1].date.getMonth());
+      if (isNewMonth) {
         var label = d.date.toLocaleDateString('en-ZA', { month: 'short' });
         if (label === 'Sep') label = 'Sept';
-        var seen = months.map(function (m) { return m.label; });
-        if (!months.length || (months[months.length - 1].label !== label && seen.indexOf(label) === -1)) {
-          var targetCol = col;
-          if (targetCol - lastCol < 2) targetCol = lastCol + 2;
-          months.push({ col: targetCol, label: label });
-          lastCol = targetCol;
-        }
+        var exactCol = i / 7.0;
+        var x = m_l + exactCol * colWidth;
+        if (x < lastX + minSpacing) x = lastX + minSpacing;
+        var finalCol = (x - m_l) / colWidth;
+        months.push({ col: finalCol, label: label });
+        lastX = x;
       }
     });
 
