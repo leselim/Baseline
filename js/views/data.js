@@ -28,23 +28,18 @@
   function render() {
     var totalRecords = SOURCES.reduce(function (a, s) { return a + s.records; }, 0);
     var months = [];
-    var lastX = -999;
-    var colWidth = 16.5; // cell 14 + gap 2.5
-    var m_l = 30; // left margin
-    var minSpacing = 19.5; // minimum px between label starts to prevent character overlap
-
+    var lastCol = -99;
     D.days.forEach(function (d, i) {
       var isFirst = (i === 0);
       var isNewMonth = (i > 0 && d.date.getMonth() !== D.days[i - 1].date.getMonth());
       if (isFirst || isNewMonth) {
         var label = d.date.toLocaleDateString('en-ZA', { month: 'short' });
         if (label === 'Sep') label = 'Sept';
-        var exactCol = i / 7.0;
-        var x = m_l + exactCol * colWidth;
-        if (x < lastX + minSpacing) x = lastX + minSpacing;
-        var finalCol = (x - m_l) / colWidth;
-        months.push({ col: finalCol, label: label });
-        lastX = x;
+        var col = Math.floor(i / 7);
+        if (!months.length || col - lastCol >= 3) {
+          months.push({ col: col, label: label });
+          lastCol = col;
+        }
       }
     });
 
@@ -64,9 +59,11 @@
       U.sectionHead('Coverage', S.dateLabel(D.first.date, { day: 'numeric', month: 'long' }) + ' to ' + S.dateLabel(D.latest.date, { day: 'numeric', month: 'long', year: 'numeric' })) +
       U.panel(null, null,
         ch.chart({
-          type: 'heatmap', height: 150, days: D.days, months: months,
-          value: function (d) { return d.screenMin ? 1 : null; },
-          tip: function (d) { return '<b>Complete</b><br><span>' + S.longDate(d.date) + ' · 5 sources</span>'; },
+          type: 'heatmap', height: 160, days: D.days, months: months,
+          value: function (d) { return d.screenMin; },
+          tip: function (d) {
+            return '<b>' + (d.screenMin ? d.screenMin + ' mins' : 'No data') + '</b><br><span>' + S.longDate(d.date) + '</span>';
+          },
           aria: 'Data coverage by day'
         }) +
         '<p class="chart-note">Complete days across the full record. Gaps reduce confidence rather than removing a pattern.</p>') +

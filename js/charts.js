@@ -193,40 +193,84 @@
   function heatmap(w, h, s) {
     var days = s.days;                       // chronological
     var rows = 7, cols = Math.ceil(days.length / 7);
-    var m = { t: 14, r: 6, b: 16, l: 30 };
-    var cell = Math.min(14, Math.floor((w - m.l - m.r) / cols) - 2);
-    var gap = 2.5;
-    var size = cell;
+    var size = 11;
+    var gap = 3;
+    var m = { t: 22, r: 12, b: 38, l: 32 };
+    var gridW = m.l + cols * (size + gap) + m.r;
     var height = m.t + rows * (size + gap) + m.b;
-    var vals = days.map(s.value).filter(function (v) { return v !== null; });
-    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
 
-    var out = '<svg viewBox="0 0 ' + w + ' ' + height + '" height="' + height + '" role="img" aria-label="' + esc(s.aria || 'Daily coverage') + '">';
+    // Collect non-zero numeric values to compute dynamic quartiles
+    var vals = days.map(s.value).filter(function (v) { return typeof v === 'number' && v > 0 && !isNaN(v); });
+    console.log('Sample heatmap day values (first 5):', days.slice(0, 5).map(function (d) { return { date: d.iso, value: s.value(d) }; }));
+
+    vals.sort(function (a, b) { return a - b; });
+    var q1 = vals.length ? vals[Math.floor(vals.length * 0.25)] : 0;
+    var q2 = vals.length ? vals[Math.floor(vals.length * 0.50)] : 0;
+    var q3 = vals.length ? vals[Math.floor(vals.length * 0.75)] : 0;
+
+    function stepColor(v) {
+      if (typeof v !== 'number' || isNaN(v) || v <= 0) return 'rgba(0,29,57,0.04)'; // Level 0 (light neutral tint)
+      if (v <= q1) return C.pale;  // Level 1
+      if (v <= q2) return C.sky;   // Level 2
+      if (v <= q3) return C.teal;  // Level 3
+      return C.deep;               // Level 4 (max brand blue)
+    }
+
+    var out = '<div class="heatmap-scroll" style="overflow-x:auto;-webkit-overflow-scrolling:touch;">';
+    out += '<svg viewBox="0 0 ' + gridW + ' ' + height + '" width="' + gridW + '" height="' + height + '" role="img" aria-label="' + esc(s.aria || 'Daily coverage') + '">';
+
+    // Mon / Wed / Fri labels vertically centered on rows 0, 2, 4 (2nd, 4th, 6th rows 1-indexed)
     ['Mon', 'Wed', 'Fri'].forEach(function (d, i) {
-      out += label(m.l - 8, m.t + [0, 2, 4][i] * (size + gap) + size - 2, d, { anchor: 'end', size: 10 });
+      var row = [0, 2, 4][i];
+      var cy = m.t + row * (size + gap) + size / 2 + 3.5;
+      out += label(m.l - 8, cy, d, { anchor: 'end', size: 10 });
     });
+
+    // Render cells: 11px soft square (rx=2), 3px gap
     days.forEach(function (d, i) {
       var col = Math.floor(i / 7), row = i % 7;
       var v = s.value(d);
-      var t = v === null ? null : (max === min ? 0.6 : (v - min) / (max - min));
-      var fill = v === null ? 'rgba(0,29,57,0.04)' : mix(t);
+      var fill = stepColor(v);
+      var tipText = s.tip ? s.tip(d) : S.longDate(d.date) + (v !== null && v !== undefined ? ': ' + v : '');
       out += '<rect x="' + (m.l + col * (size + gap)).toFixed(1) + '" y="' + (m.t + row * (size + gap)).toFixed(1) +
         '" width="' + size + '" height="' + size + '" rx="2" fill="' + fill + '"' +
-        (s.tip ? ' data-tip="' + esc(s.tip(d)) + '"' : '') + '/>';
+        ' data-tip="' + esc(tipText) + '"/>';
     });
+
+    // Month labels: sit above the first column that contains a day of that month, left-aligned to it.
+    // Skip label if a month has fewer than ~3 columns visible to prevent label collision.
     if (s.months) {
+      var lastX = -999;
+      var minColSpacing = (size + gap) * 2.8; // ~3 columns
       s.months.forEach(function (mo) {
-        out += label(m.l + mo.col * (size + gap), m.t - 4, mo.label, { size: 10 });
+        var lx = m.l + mo.col * (size + gap);
+        if (lx - lastX >= minColSpacing) {
+          out += label(lx, m.t - 6, mo.label, { size: 10 });
+          lastX = lx;
+        }
       });
     }
-    return out + '</svg>';
 
-    function mix(t) {
-      // pale → deep, in the product palette
-      var a = [189, 216, 233], b = [10, 65, 116];
-      var e = 0.25 + t * 0.75;
-      return 'rgb(' + a.map(function (c, i) { return Math.round(c + (b[i] - c) * e); }).join(',') + ')';
-    }
+    // Legend below grid right-aligned: "Less" [swatches 0..4] "More"
+    var legendRightX = gridW - m.r;
+    var legendY = height - 10;
+    var swColors = ['rgba(0,29,57,0.04)', C.pale, C.sky, C.teal, C.deep];
+    var swW = 10, swG = 3;
+    var swTotalW = swColors.length * (swW + swG) - swG;
+    var labelLessW = 24;
+    var labelMoreW = 28;
+    var totalLegendW = labelLessW + 6 + swTotalW + 6 + labelMoreW;
+    var startX = legendRightX - totalLegendW;
+
+    out += label(startX, legendY, 'Less', { size: 10, fill: C.text3 });
+    swColors.forEach(function (c, idx) {
+      var sx = startX + labelLessW + 6 + idx * (swW + swG);
+      out += '<rect x="' + sx.toFixed(1) + '" y="' + (legendY - 8) + '" width="' + swW + '" height="' + swW + '" rx="2" fill="' + c + '"/>';
+    });
+    out += label(startX + labelLessW + 6 + swTotalW + 6, legendY, 'More', { size: 10, fill: C.text3 });
+
+    out += '</svg></div>';
+    return out;
   }
 
   /* -------------------------------------------------------------- day strip */
