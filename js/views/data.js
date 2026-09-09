@@ -28,17 +28,24 @@
   function render() {
     var totalRecords = SOURCES.reduce(function (a, s) { return a + s.records; }, 0);
     var months = [];
-    var lastCol = -99;
-    D.days.forEach(function (d, i) {
-      if (i % 7 === 0) {
-        var col = i / 7;
-        var label = d.date.toLocaleDateString('en-ZA', { month: 'short' });
-        if (!months.length || (months[months.length - 1].label !== label && col - lastCol >= 2)) {
-          months.push({ col: col, label: label });
-          lastCol = col;
+    var weeks = Math.ceil(D.days.length / 7);
+    for (var col = 0; col < weeks; col++) {
+      var weekDays = D.days.slice(col * 7, (col + 1) * 7);
+      var counts = {};
+      var majLabel = '';
+      var maxCount = 0;
+      weekDays.forEach(function (d) {
+        var l = d.date.toLocaleDateString('en-ZA', { month: 'short' });
+        counts[l] = (counts[l] || 0) + 1;
+        if (counts[l] > maxCount) {
+          maxCount = counts[l];
+          majLabel = l;
         }
+      });
+      if (!months.length || months[months.length - 1].label !== majLabel) {
+        months.push({ col: col, label: majLabel });
       }
-    });
+    }
 
     return '' +
       '<header class="page-head">' +

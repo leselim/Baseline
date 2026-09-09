@@ -218,7 +218,7 @@
       var lastX = -999;
       s.months.forEach(function (mo) {
         var lx = m.l + mo.col * (size + gap);
-        if (lx - lastX >= 30) {
+        if (lx - lastX >= 24) {
           out += label(lx, m.t - 4, mo.label, { size: 10 });
           lastX = lx;
         }
