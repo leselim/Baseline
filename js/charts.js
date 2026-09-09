@@ -85,11 +85,20 @@
     out += '<path d="' + d + ' L' + x(vals.length - 1).toFixed(1) + ' ' + (m.t + ih) + ' L' + m.l + ' ' + (m.t + ih) + ' Z" fill="' + C.sky + '" opacity="0.08"/>';
     out += '<path d="' + d + '" fill="none" stroke="' + C.deep + '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>';
 
-    // x labels, thinned to fit
-    var every = Math.ceil(vals.length / Math.max(3, Math.floor(iw / 68)));
+    // x labels, evenly thinned to fit without overlap
+    var maxLabels = Math.max(2, Math.floor(iw / 72));
+    var showIndices = {};
+    if (vals.length <= maxLabels) {
+      for (var k = 0; k < vals.length; k++) showIndices[k] = true;
+    } else {
+      for (var k = 0; k < maxLabels; k++) {
+        var idx = Math.round(k * (vals.length - 1) / (maxLabels - 1));
+        showIndices[idx] = true;
+      }
+    }
     vals.forEach(function (v, i) {
-      if (labels[i] && (i % every === 0 || i === vals.length - 1)) {
-        out += label(x(i), h - 8, labels[i], { anchor: i === vals.length - 1 ? 'end' : 'middle' });
+      if (labels[i] && showIndices[i]) {
+        out += label(x(i), h - 8, labels[i], { anchor: i === vals.length - 1 ? 'end' : (i === 0 ? 'start' : 'middle') });
       }
       var tip = s.tip ? s.tip(i) : null;
       out += '<circle cx="' + x(i).toFixed(1) + '" cy="' + y(v).toFixed(1) + '" r="9" fill="transparent"' +
