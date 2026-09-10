@@ -11,14 +11,52 @@ const VIEWPORTS = [320, 375, 390, 430, 768, 820, 1024, 1280, 1440, 1920];
 
 console.log('=== RUNNING BASELINE LAYOUT & GEOMETRY AUDIT ===\n');
 
-// 1. Parse CSS rules outside @media
-function getCSSOutsideMedia() {
-  const cssFiles = ['tokens.css', 'base.css', 'components.css', 'responsive.css'];
-  let fullCSS = '';
-  cssFiles.forEach(file => {
-    fullCSS += fs.readFileSync(path.join(BASELINE_DIR, 'css', file), 'utf8') + '\n';
-  });
+// 1. Sweep CSS for place- shorthands and circular text rules
+const cssFiles = ['tokens.css', 'base.css', 'components.css', 'responsive.css'];
+let fullCSS = '';
+cssFiles.forEach(file => {
+  fullCSS += fs.readFileSync(path.join(BASELINE_DIR, 'css', file), 'utf8') + '\n';
+});
 
+// Check for place- shorthands
+const placeMatches = fullCSS.match(/\b(place-items|place-content|place-self)\b/gi);
+if (placeMatches && placeMatches.length > 0) {
+  console.error(`[FAIL] Found ${placeMatches.length} place- shorthand declarations: ${placeMatches.join(', ')}`);
+  process.exit(1);
+} else {
+  console.log('CSS Shorthand Sweep: PASS (0 place- shorthands found)');
+}
+
+// Audit rules with border-radius: 50% together with font-size
+function auditCircularTextRules(cssText) {
+  const cleanCSS = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
+  const ruleRegex = /([^{]+)\{([^}]+)\}/g;
+  let match;
+  const circularTextRules = [];
+  while ((match = ruleRegex.exec(cleanCSS)) !== null) {
+    const selector = match[1].trim();
+    const body = match[2].trim();
+
+    if (/border-radius\s*:\s*50%/i.test(body) && /font-size\s*:/i.test(body)) {
+      const hasFlex = /display\s*:\s*(inline-flex|flex)/i.test(body);
+      const hasAlign = /align-items\s*:\s*center/i.test(body);
+      const hasJustify = /justify-content\s*:\s*center/i.test(body);
+      const hasLineHeight = /line-height\s*:\s*1/i.test(body);
+      const valid = hasFlex && hasAlign && hasJustify && hasLineHeight;
+      circularTextRules.push({ selector, valid, body });
+    }
+  }
+  return circularTextRules;
+}
+
+const circularRules = auditCircularTextRules(fullCSS);
+console.log(`Circular Text Rules (border-radius: 50% + font-size): Found ${circularRules.length}`);
+circularRules.forEach(r => {
+  console.log(` - Rule "${r.selector}": ${r.valid ? 'CONFIRMED (uses longhand flex centering)' : 'FAIL (missing longhand flex centering)'}`);
+});
+
+// 2. Parse CSS rules outside @media
+function getCSSOutsideMedia() {
   let outsideCSS = '';
   let i = 0;
   while (i < fullCSS.length) {
@@ -81,7 +119,7 @@ function parseClassLayoutProperties(cssText) {
 
 const classLayoutMap = parseClassLayoutProperties(cssOutside);
 
-// 2. Setup DOM & load scripts
+// 3. Setup DOM & load scripts
 const htmlContent = fs.readFileSync(path.join(BASELINE_DIR, 'index.html'), 'utf8');
 const dom = new JSDOM(htmlContent, {
   runScripts: "dangerously",
@@ -123,7 +161,6 @@ const document = window.document;
 function extractDataGeometry(svg) {
   const geometry = [];
 
-  // Bar rects (excluding background tracks)
   const rects = Array.from(svg.querySelectorAll('rect'));
   rects.forEach(r => {
     const fill = (r.getAttribute('fill') || '').toLowerCase();
@@ -142,7 +179,6 @@ function extractDataGeometry(svg) {
     }
   });
 
-  // Plotted line segments
   const paths = Array.from(svg.querySelectorAll('path'));
   paths.forEach(p => {
     const fill = (p.getAttribute('fill') || '').toLowerCase();
@@ -191,7 +227,6 @@ function extractDataGeometry(svg) {
     });
   });
 
-  // Markers
   const circles = Array.from(svg.querySelectorAll('circle'));
   circles.forEach(c => {
     const fill = (c.getAttribute('fill') || '').toLowerCase();
@@ -214,7 +249,7 @@ function extractDataGeometry(svg) {
   return geometry;
 }
 
-// 3. PROOF TEST: Deliberately move label onto bars and confirm audit catches it
+// 4. PROOF TEST: Deliberately move label onto bars and confirm audit catches it
 console.log('--- PROVING GEOMETRY AUDIT PROOF TEST ---');
 const testBarsSvg = BL.charts.chart({ type: 'bars', items: [{ label: 'Test', value: 100 }], height: 200 });
 const testBarsContainer = dom.window.document.createElement('div');
@@ -273,7 +308,7 @@ if (!proofCollisionDetected) {
   console.log('>>> PROOF TEST PASSED: Extended collision check successfully detects text-geometry overlaps! <<<\n');
 }
 
-// 4. Span Container Stacking Audit
+// 5. Span Container Stacking Audit
 let spanFailures = 0;
 
 function checkSpansInContainer(el, stateDesc) {
@@ -321,7 +356,7 @@ Object.keys(BL.views).forEach(viewKey => {
 
 console.log(`Span Container Audit: ${spanFailures === 0 ? 'PASS (0 failures)' : `FAIL (${spanFailures} failures)`}`);
 
-// 5. Chart Collision & Data Geometry Audit across 10 viewports
+// 6. Chart Collision & Data Geometry Audit across 10 viewports
 let textUnder10pxCount = 0;
 let labelCollisions = 0;
 let labelGeometryCollisions = 0;
@@ -441,7 +476,9 @@ console.log(`         Text-Text Collisions: ${labelCollisions}`);
 console.log(`         Text-Geometry Collisions: ${labelGeometryCollisions}`);
 console.log(`         Label Overflows: ${labelOverflows}`);
 
-if (spanFailures === 0 && textUnder10pxCount === 0 && labelCollisions === 0 && labelGeometryCollisions === 0 && labelOverflows === 0) {
+const allCircularValid = circularRules.every(r => r.valid);
+
+if (spanFailures === 0 && textUnder10pxCount === 0 && labelCollisions === 0 && labelGeometryCollisions === 0 && labelOverflows === 0 && allCircularValid) {
   console.log('\n>>> SUCCESS: ALL AUDITS PASSED CLEANLY <<<');
   process.exit(0);
 } else {
