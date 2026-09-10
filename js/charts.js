@@ -84,13 +84,22 @@
   function line(w, h, s) {
     var vals = s.values, labels = s.labels || [];
     var m = { t: 16, r: 14, b: 26, l: 46 };
-    var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
     var span = max - min || 1;
     var floor = min >= 0 ? 0 : -Infinity;
     min = Math.max(floor, min - span * 0.18);
     max += span * 0.18;
     if (s.zero) min = 0;
+
+    var bLabel = s.baselineLabel || 'your usual';
+    var hasBaseline = s.baseline !== undefined && s.baseline >= min && s.baseline <= max;
+    var showBaselineLabel = hasBaseline && w >= 420;
+    if (showBaselineLabel) {
+      var bLabelW = textWidth(bLabel, 10.5);
+      m.r += Math.ceil(bLabelW + 8);
+    }
+
+    var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var x = function (i) { return m.l + (i / Math.max(1, vals.length - 1)) * iw; };
     var y = function (v) { return m.t + ih - ((v - min) / (max - min)) * ih; };
 
@@ -101,11 +110,13 @@
       out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + C.soft + '"/>';
       out += label(m.l - 8, +gy + 3.5, s.fmtAxis ? s.fmtAxis(gv) : Math.round(gv), { anchor: 'end' });
     }
-    if (s.baseline !== undefined && s.baseline >= min && s.baseline <= max) {
+    if (hasBaseline) {
       var by = y(s.baseline).toFixed(1);
       out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel +
         '" stroke-width="1" stroke-dasharray="2 4" opacity="0.9"/>';
-      if (w > 420) out += label(w - m.r, +by - 7, s.baselineLabel || 'your usual', { anchor: 'end', size: 10.5, fill: C.steel });
+      if (showBaselineLabel) {
+        out += label(w - m.r + 6, +by + 3.5, bLabel, { anchor: 'start', size: 10.5, fill: C.steel });
+      }
     }
     var d = vals.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ');
     out += '<path d="' + d + ' L' + x(vals.length - 1).toFixed(1) + ' ' + (m.t + ih) + ' L' + m.l + ' ' + (m.t + ih) + ' Z" fill="' + C.sky + '" opacity="0.08"/>';
@@ -141,6 +152,15 @@
   function bars(w, h, s) {
     var items = s.items;
     var m = { t: 16, r: 8, b: 28, l: 48 };
+
+    var bLabel = s.baselineLabel || 'your usual';
+    var hasBaseline = Boolean(s.baseline);
+    var showBaselineLabel = hasBaseline && w >= 420;
+    if (showBaselineLabel) {
+      var bLabelW = textWidth(bLabel, 10.5);
+      m.r += Math.ceil(bLabelW + 8);
+    }
+
     var iw = w - m.l - m.r, ih = h - m.t - m.b;
     var max = niceMax(Math.max.apply(null, items.map(function (i) { return i.value; })));
     var step = iw / items.length;
@@ -153,10 +173,12 @@
       out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + gy + '" y2="' + gy + '" stroke="' + (g === 0 ? C.line : C.soft) + '"/>';
       out += label(m.l - 8, +gy + 3.5, s.fmtAxis ? s.fmtAxis(gv) : Math.round(gv), { anchor: 'end' });
     }
-    if (s.baseline) {
+    if (hasBaseline) {
       var by = y(s.baseline).toFixed(1);
       out += '<line x1="' + m.l + '" x2="' + (w - m.r) + '" y1="' + by + '" y2="' + by + '" stroke="' + C.steel + '" stroke-width="1" stroke-dasharray="2 4"/>';
-      if (w > 420) out += label(w - m.r, +by - 7, s.baselineLabel || 'your usual', { anchor: 'end', size: 10.5, fill: C.steel });
+      if (showBaselineLabel) {
+        out += label(w - m.r + 6, +by + 3.5, bLabel, { anchor: 'start', size: 10.5, fill: C.steel });
+      }
     }
     /* If a column is too narrow for the full name, the first letter is used
      * and the full name stays available to a screen reader and the tooltip. */

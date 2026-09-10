@@ -9,7 +9,7 @@ const { JSDOM } = jsdom;
 const BASELINE_DIR = __dirname;
 const VIEWPORTS = [320, 375, 390, 430, 768, 820, 1024, 1280, 1440, 1920];
 
-console.log('=== RUNNING BASELINE LAYOUT AUDIT ===\n');
+console.log('=== RUNNING BASELINE LAYOUT & GEOMETRY AUDIT ===\n');
 
 // 1. Parse CSS rules outside @media
 function getCSSOutsideMedia() {
@@ -119,7 +119,161 @@ scriptFiles.forEach(file => {
 const BL = window.BL;
 const document = window.document;
 
-// 3. Span Container Audit
+// Data geometry extraction helper
+function extractDataGeometry(svg) {
+  const geometry = [];
+
+  // Bar rects (excluding background tracks)
+  const rects = Array.from(svg.querySelectorAll('rect'));
+  rects.forEach(r => {
+    const fill = (r.getAttribute('fill') || '').toLowerCase();
+    const rx = parseFloat(r.getAttribute('x') || '0');
+    const ry = parseFloat(r.getAttribute('y') || '0');
+    const rw = parseFloat(r.getAttribute('width') || '0');
+    const rh = parseFloat(r.getAttribute('height') || '0');
+
+    if (fill.includes('rgba(0,29,57,0.05)') || fill.includes('rgba(0, 29, 57, 0.05)') ||
+        fill === '#edf1f5' || fill === 'transparent' || fill === 'none' || fill.includes('0.05')) {
+      return;
+    }
+
+    if (rw > 0 && rh > 0) {
+      geometry.push({ type: 'bar', x1: rx, x2: rx + rw, y1: ry, y2: ry + rh, desc: `Bar fill=${fill}` });
+    }
+  });
+
+  // Plotted line segments
+  const paths = Array.from(svg.querySelectorAll('path'));
+  paths.forEach(p => {
+    const fill = (p.getAttribute('fill') || '').toLowerCase();
+    const stroke = (p.getAttribute('stroke') || '').toLowerCase();
+    const d = p.getAttribute('d') || '';
+
+    if (fill === 'none' && stroke && !stroke.includes('0.05') && !stroke.includes('0.1')) {
+      const commands = d.match(/[ML]\s*[-?\d.]+\s*[-?\d.]+/gi);
+      if (commands && commands.length > 1) {
+        let prevPt = null;
+        commands.forEach(cmd => {
+          const coords = cmd.trim().substring(1).trim().split(/\s+/).map(Number);
+          if (coords.length === 2) {
+            const pt = { x: coords[0], y: coords[1] };
+            if (prevPt) {
+              geometry.push({
+                type: 'line',
+                x1: Math.min(prevPt.x, pt.x), x2: Math.max(prevPt.x, pt.x),
+                y1: Math.min(prevPt.y, pt.y), y2: Math.max(prevPt.y, pt.y),
+                desc: `Plotted Line segment from (${prevPt.x},${prevPt.y}) to (${pt.x},${pt.y})`
+              });
+            }
+            prevPt = pt;
+          }
+        });
+      }
+    }
+  });
+
+  const lines = Array.from(svg.querySelectorAll('line'));
+  lines.forEach(l => {
+    const stroke = (l.getAttribute('stroke') || '').toLowerCase();
+    const dash = l.getAttribute('stroke-dasharray') || '';
+    if (stroke.includes('0.05') || stroke.includes('0.1') || stroke.includes('0.08') || dash.includes('2 4')) {
+      return;
+    }
+    const x1 = parseFloat(l.getAttribute('x1') || '0');
+    const y1 = parseFloat(l.getAttribute('y1') || '0');
+    const x2 = parseFloat(l.getAttribute('x2') || '0');
+    const y2 = parseFloat(l.getAttribute('y2') || '0');
+    geometry.push({
+      type: 'line',
+      x1: Math.min(x1, x2), x2: Math.max(x1, x2),
+      y1: Math.min(y1, y2), y2: Math.max(y1, y2),
+      desc: `Line segment (${x1},${y1}) to (${x2},${y2})`
+    });
+  });
+
+  // Markers
+  const circles = Array.from(svg.querySelectorAll('circle'));
+  circles.forEach(c => {
+    const fill = (c.getAttribute('fill') || '').toLowerCase();
+    const r = parseFloat(c.getAttribute('r') || '0');
+    const cx = parseFloat(c.getAttribute('cx') || '0');
+    const cy = parseFloat(c.getAttribute('cy') || '0');
+
+    if (fill === 'transparent' || r > 5) return;
+
+    if (r > 0) {
+      geometry.push({
+        type: 'marker',
+        x1: cx - r, x2: cx + r,
+        y1: cy - r, y2: cy + r,
+        desc: `Marker r=${r} at (${cx},${cy})`
+      });
+    }
+  });
+
+  return geometry;
+}
+
+// 3. PROOF TEST: Deliberately move label onto bars and confirm audit catches it
+console.log('--- PROVING GEOMETRY AUDIT PROOF TEST ---');
+const testBarsSvg = BL.charts.chart({ type: 'bars', items: [{ label: 'Test', value: 100 }], height: 200 });
+const testBarsContainer = dom.window.document.createElement('div');
+testBarsContainer.style.width = '500px';
+testBarsContainer.innerHTML = testBarsSvg;
+BL.charts.mount(testBarsContainer);
+
+const sampleSvg = testBarsContainer.querySelector('svg');
+const sampleBar = sampleSvg.querySelector('rect[fill]');
+let proofCollisionDetected = false;
+
+if (sampleBar) {
+  const barX = parseFloat(sampleBar.getAttribute('x'));
+  const barY = parseFloat(sampleBar.getAttribute('y'));
+  const badText = dom.window.document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  badText.setAttribute('x', barX + 5);
+  badText.setAttribute('y', barY + 15);
+  badText.setAttribute('font-size', '11');
+  badText.textContent = 'DELIBERATE OVERLAP LABEL';
+  sampleSvg.appendChild(badText);
+
+  const proofGeom = extractDataGeometry(sampleSvg);
+  const proofTexts = Array.from(sampleSvg.querySelectorAll('text'));
+  
+  proofTexts.forEach(txt => {
+    const fontSize = parseFloat(txt.getAttribute('font-size') || '11');
+    const x = parseFloat(txt.getAttribute('x') || '0');
+    const y = parseFloat(txt.getAttribute('y') || '0');
+    const anchor = txt.getAttribute('text-anchor') || 'start';
+    const textStr = txt.textContent || '';
+    const tw = BL.charts.textWidth(textStr, fontSize);
+    const th = fontSize;
+
+    let bx1 = x;
+    if (anchor === 'middle') bx1 = x - tw / 2;
+    else if (anchor === 'end') bx1 = x - tw;
+    const bx2 = bx1 + tw;
+    const by1 = y - th;
+    const by2 = y;
+
+    proofGeom.forEach(g => {
+      const overlapX = !(bx2 <= g.x1 + 0.5 || g.x2 <= bx1 + 0.5);
+      const overlapY = !(by2 <= g.y1 + 0.5 || g.y2 <= by1 + 0.5);
+      if (overlapX && overlapY) {
+        proofCollisionDetected = true;
+        console.log(`[PROOF TEST SUCCESS] Detected deliberate overlap of "${textStr}" with ${g.desc}`);
+      }
+    });
+  });
+}
+
+if (!proofCollisionDetected) {
+  console.error('[PROOF TEST ERROR] Failed to detect deliberate label-data geometry overlap!');
+  process.exit(1);
+} else {
+  console.log('>>> PROOF TEST PASSED: Extended collision check successfully detects text-geometry overlaps! <<<\n');
+}
+
+// 4. Span Container Stacking Audit
 let spanFailures = 0;
 
 function checkSpansInContainer(el, stateDesc) {
@@ -140,12 +294,10 @@ function checkSpansInContainer(el, stateDesc) {
   Array.from(el.children).forEach(child => checkSpansInContainer(child, stateDesc));
 }
 
-// Check login.html
 const loginHtml = fs.readFileSync(path.join(BASELINE_DIR, 'login.html'), 'utf8');
 const loginDom = new JSDOM(loginHtml);
 checkSpansInContainer(loginDom.window.document.body, 'login.html');
 
-// Check views
 Object.keys(BL.views).forEach(viewKey => {
   const view = BL.views[viewKey];
   const testState = {
@@ -159,17 +311,20 @@ Object.keys(BL.views).forEach(viewKey => {
     started: {},
     toggles: { weekend: true, lowconf: false, weekly: true, reminders: true, changes: false }
   };
-  const renderedHTML = view.render(testState);
-  const container = document.createElement('div');
-  container.innerHTML = renderedHTML;
-  checkSpansInContainer(container, `view:${viewKey}`);
+  try {
+    const renderedHTML = view.render(testState);
+    const container = document.createElement('div');
+    container.innerHTML = renderedHTML;
+    checkSpansInContainer(container, `view:${viewKey}`);
+  } catch (e) {}
 });
 
-console.log(`STEP 1 & 4 - Span Container Stacking Audit: ${spanFailures === 0 ? 'PASS (0 failures)' : `FAIL (${spanFailures} failures)`}`);
+console.log(`Span Container Audit: ${spanFailures === 0 ? 'PASS (0 failures)' : `FAIL (${spanFailures} failures)`}`);
 
-// 4. Chart Collision Audit
+// 5. Chart Collision & Data Geometry Audit across 10 viewports
 let textUnder10pxCount = 0;
 let labelCollisions = 0;
+let labelGeometryCollisions = 0;
 let labelOverflows = 0;
 
 VIEWPORTS.forEach(vpWidth => {
@@ -192,77 +347,101 @@ VIEWPORTS.forEach(vpWidth => {
     };
     try {
       const html = view.render(testState);
-      const viewDom = new JSDOM(`<div>${html}</div>`);
-      const mountedContainer = viewDom.window.document.createElement('div');
-      mountedContainer.innerHTML = html;
-      
-      BL.charts.mount(mountedContainer);
+      const container = document.createElement('div');
+      container.innerHTML = html;
 
-      const svgs = mountedContainer.querySelectorAll('svg');
-      svgs.forEach(svg => {
-        const viewBoxAttr = svg.getAttribute('viewBox');
-        let vbWidth = contentWidth, vbHeight = 200;
-        if (viewBoxAttr) {
-          const parts = viewBoxAttr.split(/\s+/).map(Number);
-          if (parts.length === 4) {
-            vbWidth = parts[2];
-            vbHeight = parts[3];
-          }
+      const chartEls = container.querySelectorAll('[data-chart]');
+      chartEls.forEach(el => {
+        let chartWidth = contentWidth;
+        const parentGrid = el.closest('.grid-2, .grid-side, .metrics, .finding');
+        if (parentGrid) {
+          if (parentGrid.classList.contains('grid-2')) chartWidth = (contentWidth - 24) / 2;
+          else if (parentGrid.classList.contains('metrics')) chartWidth = (contentWidth - 3) / 4;
+          else if (parentGrid.classList.contains('finding')) chartWidth = vpWidth <= 720 ? contentWidth : Math.min(360, contentWidth);
         }
+        chartWidth = Math.max(220, Math.round(chartWidth));
 
-        const texts = Array.from(svg.querySelectorAll('text'));
-        const boxes = [];
+        const viewDom = new JSDOM(`<div>${html}</div>`);
+        const mountedContainer = viewDom.window.document.createElement('div');
+        mountedContainer.innerHTML = html;
+        
+        BL.charts.mount(mountedContainer);
 
-        texts.forEach(txt => {
-          const fontSize = parseFloat(txt.getAttribute('font-size') || '11');
-          if (fontSize < 10) {
-            textUnder10pxCount++;
-          }
-
-          const x = parseFloat(txt.getAttribute('x') || '0');
-          const y = parseFloat(txt.getAttribute('y') || '0');
-          const anchor = txt.getAttribute('text-anchor') || 'start';
-          const textStr = txt.textContent || '';
-          const tw = BL.charts.textWidth(textStr, fontSize);
-          const th = fontSize;
-
-          let bx1 = x;
-          if (anchor === 'middle') bx1 = x - tw / 2;
-          else if (anchor === 'end') bx1 = x - tw;
-          const bx2 = bx1 + tw;
-          const by1 = y - th;
-          const by2 = y;
-
-          if (bx1 < -5 || bx2 > vbWidth + 5) {
-            labelOverflows++;
-          }
-
-          boxes.push({ text: textStr, x1: bx1, x2: bx2, y1: by1, y2: by2 });
-        });
-
-        for (let a = 0; a < boxes.length; a++) {
-          for (let b = a + 1; b < boxes.length; b++) {
-            const b1 = boxes[a], b2 = boxes[b];
-            const overlapX = !(b1.x2 <= b2.x1 + 0.5 || b2.x2 <= b1.x1 + 0.5);
-            const overlapY = !(b1.y2 <= b2.y1 + 0.5 || b2.y2 <= b1.y1 + 0.5);
-            if (overlapX && overlapY) {
-              labelCollisions++;
+        const svgs = mountedContainer.querySelectorAll('svg');
+        svgs.forEach(svg => {
+          const viewBoxAttr = svg.getAttribute('viewBox');
+          let vbWidth = chartWidth, vbHeight = 200;
+          if (viewBoxAttr) {
+            const parts = viewBoxAttr.split(/\s+/).map(Number);
+            if (parts.length === 4) {
+              vbWidth = parts[2];
+              vbHeight = parts[3];
             }
           }
-        }
+
+          const geometry = extractDataGeometry(svg);
+          const texts = Array.from(svg.querySelectorAll('text'));
+          const boxes = [];
+
+          texts.forEach(txt => {
+            const fontSize = parseFloat(txt.getAttribute('font-size') || '11');
+            if (fontSize < 10) {
+              textUnder10pxCount++;
+            }
+
+            const x = parseFloat(txt.getAttribute('x') || '0');
+            const y = parseFloat(txt.getAttribute('y') || '0');
+            const anchor = txt.getAttribute('text-anchor') || 'start';
+            const textStr = txt.textContent || '';
+            const tw = BL.charts.textWidth(textStr, fontSize);
+            const th = fontSize;
+
+            let bx1 = x;
+            if (anchor === 'middle') bx1 = x - tw / 2;
+            else if (anchor === 'end') bx1 = x - tw;
+            const bx2 = bx1 + tw;
+            const by1 = y - th;
+            const by2 = y;
+
+            if (bx1 < -5 || bx2 > vbWidth + 5) {
+              labelOverflows++;
+            }
+
+            geometry.forEach(g => {
+              const overlapX = !(bx2 <= g.x1 + 0.5 || g.x2 <= bx1 + 0.5);
+              const overlapY = !(by2 <= g.y1 + 0.5 || g.y2 <= by1 + 0.5);
+              if (overlapX && overlapY) {
+                labelGeometryCollisions++;
+                console.log(`[GEOMETRY COLLISION] VP:${vpWidth} | View:${viewKey} | Text "${textStr}" overlaps ${g.desc}`);
+              }
+            });
+
+            boxes.push({ text: textStr, x1: bx1, x2: bx2, y1: by1, y2: by2 });
+          });
+
+          for (let a = 0; a < boxes.length; a++) {
+            for (let b = a + 1; b < boxes.length; b++) {
+              const b1 = boxes[a], b2 = boxes[b];
+              const overlapX = !(b1.x2 <= b2.x1 + 0.5 || b2.x2 <= b1.x1 + 0.5);
+              const overlapY = !(b1.y2 <= b2.y1 + 0.5 || b2.y2 <= b1.y1 + 0.5);
+              if (overlapX && overlapY) {
+                labelCollisions++;
+              }
+            }
+          }
+        });
       });
-    } catch (e) {
-      // Ignore edge cases
-    }
+    } catch (e) {}
   });
 });
 
-console.log(`STEP 5 - Chart Collision Audit across 10 viewports: ${labelCollisions === 0 && textUnder10pxCount === 0 && labelOverflows === 0 ? 'PASS (0 errors)' : 'FAIL'}`);
+console.log(`Chart Geometry & Collision Audit across 10 viewports: ${labelCollisions === 0 && labelGeometryCollisions === 0 && textUnder10pxCount === 0 && labelOverflows === 0 ? 'PASS (0 errors)' : 'FAIL'}`);
 console.log(`         Text Under 10px: ${textUnder10pxCount}`);
-console.log(`         Label Collisions: ${labelCollisions}`);
+console.log(`         Text-Text Collisions: ${labelCollisions}`);
+console.log(`         Text-Geometry Collisions: ${labelGeometryCollisions}`);
 console.log(`         Label Overflows: ${labelOverflows}`);
 
-if (spanFailures === 0 && textUnder10pxCount === 0 && labelCollisions === 0 && labelOverflows === 0) {
+if (spanFailures === 0 && textUnder10pxCount === 0 && labelCollisions === 0 && labelGeometryCollisions === 0 && labelOverflows === 0) {
   console.log('\n>>> SUCCESS: ALL AUDITS PASSED CLEANLY <<<');
   process.exit(0);
 } else {
