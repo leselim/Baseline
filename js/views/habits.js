@@ -1,59 +1,78 @@
-/* Baseline: Habits (observed recurrence) */
+/* Baseline. Behaviours. What recurs, counted rather than remembered. */
 (function (global) {
-  var BL = global.BL, S = BL.stats, D = BL.data, U = BL.ui, ch = BL.charts;
+  var BL = global.BL, S = BL.stats, D = BL.data, U = BL.ui, ch = BL.charts, A = BL.analysis;
 
   function strip(h) {
-    return '<div class="habit__strip">' + h.days.slice(-28).map(function (d) {
-      return '<i class="' + (d.hit ? 'on ' : '') + (d.day.weekend ? 'weekend' : '') + '" title="' +
-        S.longDate(d.day.date) + (d.hit ? ' · recorded' : ' · not recorded') + '"></i>';
-    }).join('') + '</div>';
+    var recent = h.days.slice(-28);
+    var hits = recent.filter(function (d) { return d.hit; }).length;
+    return '<div class="habit__strip" role="img" aria-label="' + U.esc(h.label) +
+      ' on ' + hits + ' of the last 28 days">' +
+      recent.map(function (d) {
+        return '<i class="' + (d.hit ? 'on ' : '') + (d.day.weekend ? 'weekend' : '') + '" title="' +
+          U.esc(S.longDate(d.day.date) + (d.hit ? ', yes' : ', no')) + '"></i>';
+      }).join('') + '</div>';
   }
 
   function row(h) {
-    var trend = h.trend > 0 ? '+' + h.trend + ' in the last four weeks'
-      : h.trend < 0 ? h.trend + ' in the last four weeks'
-        : 'Unchanged over four weeks';
-    return '<div class="habit">' +
-      '<div><div class="t-sub">' + U.esc(h.label) + '</div>' +
-      '<p class="t-small" style="margin-top:4px">' + U.esc(h.note) + '</p>' +
-      '<p class="t-fine" style="margin-top:10px">' + h.perWeek.toFixed(1) + ' days a week · ' + h.consistency + '% of days · ' + trend + '</p></div>' +
-      '<div class="row" style="gap:22px">' + strip(h) +
-      '<div style="min-width:74px;text-align:right"><div class="t-data-m">' + h.consistency + '%</div>' +
-      '<div class="t-fine">consistency</div></div></div>' +
-      '</div>';
+    var when = S.behaviourWhen(h);
+    var trend = h.trend > 0 ? h.trend + ' more days than the four weeks before'
+      : h.trend < 0 ? Math.abs(h.trend) + ' fewer days than the four weeks before'
+        : 'Same as the four weeks before';
+    return '<article class="habit">' +
+      '<div class="habit__id"><h3 class="t-sub">' + U.esc(h.label) + '</h3>' +
+      '<p class="habit__when">' + U.esc(when || '') + '</p></div>' +
+      '<div class="habit__right">' +
+      '<div class="habit__score"><span class="t-data-m">' + h.consistency + '%</span>' +
+      '<span class="t-fine">of days</span></div>' +
+      '<div class="habit__track">' + strip(h) +
+      '<p class="t-fine">Last 28 days. ' + U.esc(trend) + '.</p></div>' +
+      '</div></article>';
   }
 
   function render() {
-    var habits = S.habits();
-    var strongest = habits.slice().sort(function (a, b) { return b.consistency - a.consistency; })[0];
-    var weakest = habits.slice().sort(function (a, b) { return a.consistency - b.consistency; })[0];
+    var list = S.behaviours();
+    var exDays = D.days.filter(function (d) { return d.exercise; }).length;
+    var best = Math.max.apply(null, D.days.map(function (d) { return d.steps; }));
+    var usual = A.mean(A.values('steps'));
 
     return '' +
       '<header class="page-head">' +
-      '<h1 class="t-page">Habits</h1>' +
-      '<p class="page-head__lead">Behaviours that repeat often enough to measure. Nothing here is a target, each one is counted from your own record over the last eight weeks.</p>' +
+      '<h1 class="t-page">Behaviours</h1>' +
+      '<p class="page-head__lead">What you tend to do. Nothing here is a target and nothing is scored.</p>' +
       '</header>' +
 
       '<section class="section">' +
-      U.sectionHead('Recurring behaviours', 'Last 56 days · shaded squares are weekends') +
-      U.panel(null, null, habits.map(row).join(''),
-        '<p class="t-fine">' + U.esc(strongest.label) + ' is your most consistent behaviour at ' + strongest.consistency +
-        '%. ' + U.esc(weakest.label) + ' appears on ' + weakest.consistency + '% of days.</p>') +
+      U.sectionHead('What recurs', 'Last 56 days', null,
+        'Each small mark is one day, oldest on the left. Filled means it happened.') +
+      '<div class="stack stack-5">' + list.map(row).join('') + '</div>' +
       '</section>' +
 
       '<section class="section">' +
-      U.sectionHead('Exercise across the record', D.days.length + ' days') +
+      U.sectionHead('Movement, day by day', D.days.length + ' days', null,
+        'Columns are weeks. Rows run Monday at the top to Sunday at the bottom.') +
       U.panel(null, null,
         ch.chart({
-          type: 'heatmap', height: 150, days: D.days,
-          value: function (d) { return d.exercise ? d.steps : d.steps * 0.35; },
-          tip: function (d) { return '<b>' + S.num(d.steps) + ' steps</b><br><span>' + S.longDate(d.date) + (d.exercise ? ' · exercise recorded' : '') + '</span>'; },
-          aria: 'Daily step count across the record'
+          type: 'heatmap', height: 176, days: D.days, className: 'chart--fit',
+          value: function (d) { return d.steps; },
+          monthLabel: function (d) { return d.toLocaleDateString('en-ZA', { month: 'short' }); },
+          legendLow: 'Fewer steps', legendHigh: 'More',
+          tip: function (d) {
+            return { value: S.num(d.steps) + ' steps', sub: S.longDate(d.date) + (d.exercise ? ', exercise recorded' : '') };
+          },
+          aria: 'Steps on each day of your record'
         }) +
-        '<p class="chart-note">Each column is one week, read top to bottom from Monday. Darker days carry more movement.</p>') +
+        '<div class="stat-inline" style="margin-top:26px">' +
+        '<div class="stat-inline__item"><span class="t-label">A usual day</span>' +
+        '<span class="t-data-m">' + S.num(usual) + '</span><span class="t-fine">steps</span></div>' +
+        '<div class="stat-inline__item"><span class="t-label">Your busiest day</span>' +
+        '<span class="t-data-m">' + S.num(best) + '</span><span class="t-fine">steps</span></div>' +
+        '<div class="stat-inline__item"><span class="t-label">Days with a session</span>' +
+        '<span class="t-data-m">' + exDays + '</span><span class="t-fine">of ' + D.days.length + '</span></div>' +
+        '</div>' +
+        U.reading('Read down a column to see one week. Read across a row to follow one weekday over months.')) +
       '</section>';
   }
 
   BL.views = BL.views || {};
-  BL.views.habits = { title: 'Habits', render: render };
+  BL.views.habits = { title: 'Behaviours', render: render };
 })(typeof window !== 'undefined' ? window : globalThis);

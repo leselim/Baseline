@@ -1,10 +1,18 @@
-/* Baseline: charts + responsive */
+/* Baseline. chart shells, tooltip, and every breakpoint */
 
-.chart { width: 100%; }
+.chart { width: 100%; min-width: 0; }
 .chart svg { display: block; width: 100%; }
 .chart text { font-family: var(--font); }
-.chart-legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); margin-top: 12px; }
-.chart-legend i { width: 10px; height: 2px; display: inline-block; vertical-align: middle; margin-right: 7px; }
+.chart-legend {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--text-2); margin-top: 12px;
+}
+.chart-legend i {
+  width: 10px; height: 2px; display: inline-block; vertical-align: middle; margin-right: 7px;
+}
+.chart-legend i.dash {
+  height: 0; border-top: 1px dashed var(--deep); width: 12px;
+}
 .chart-note { font-size: 12.5px; color: var(--text-3); margin-top: 12px; }
 
 .tooltip {
@@ -21,13 +29,33 @@
   transform: translate(-50%, -100%);
   transition: opacity var(--t-fast);
   box-shadow: var(--shadow-2);
-  white-space: nowrap;
+  max-width: min(260px, calc(100vw - 24px));
 }
 .tooltip.on { opacity: 1; }
-.tooltip b { font-weight: 500; font-variant-numeric: tabular-nums; }
-.tooltip span { color: rgba(255, 255, 255, 0.6); }
+.tooltip--below { transform: translate(-50%, 0); }
+.tooltip b { font-weight: 500; font-variant-numeric: tabular-nums; display: block; }
+.tooltip span { color: rgba(255, 255, 255, 0.68); display: block; }
+.tooltip span:empty { display: none; }
 
-/* ------------------------------------------------------------- tablet */
+/* -------------------------------------------------- large desktop and down */
+@media (max-width: 1240px) {
+  .view { padding: 40px 36px 112px; }
+  .grid-side { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+
+/* The observation card keeps its picture beside its words only while both
+   have room. Below that the picture goes first and the words follow. */
+@media (max-width: 1120px) {
+  .finding {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "title" "visual" "body";
+    row-gap: 22px;
+  }
+  .finding > .visual { max-width: 540px; }
+  .source__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+}
+
+/* ------------------------------------------------------------- tablet rail */
 @media (max-width: 1080px) {
   :root { --nav-w: 76px; }
   .nav { padding: 24px 12px 18px; align-items: center; }
@@ -40,21 +68,42 @@
     border-bottom: 1px solid currentColor;
     opacity: 0.92;
   }
+  .nav__scroll { width: 100%; }
   .nav__grouplabel { display: none; }
+  .nav__group + .nav__group {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-ink);
+  }
   .nav__item { justify-content: center; padding: 10px; }
   .nav__item span { display: none; }
   .nav__item svg { width: 17px; height: 17px; }
-  .nav__user { padding: 6px 0; }
+  .nav__user { padding: 8px 0 0; justify-content: center; }
   .nav__userinfo { display: none; }
-  .view { padding: 32px 28px 96px; }
-  .insight { grid-template-columns: 1fr; gap: 24px; }
-  .grid-side, .grid-explorer { grid-template-columns: 1fr; }
-  .grid-3 { grid-template-columns: 1fr 1fr; }
-  .source { grid-template-columns: minmax(0,1fr) 110px 80px; }
-  .source__coverage { display: none; }
+
+  .view { padding: 32px 28px 112px; }
+  .grid-side { grid-template-columns: minmax(0, 1fr); }
+  .guide-idea { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .glossary__item { grid-template-columns: 160px minmax(0, 1fr); gap: 20px; }
 }
 
-/* ------------------------------------------------------------- mobile */
+/* ------------------------------------------- narrow tablet / small laptop */
+@media (max-width: 920px) {
+  .grid-2 { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric { border-top: 1px solid var(--line-soft); }
+  .metric:nth-child(-n + 2) { border-top: 0; }
+  .metric:nth-child(odd) { border-left: 0; }
+
+  .plain-pair { gap: 24px; }
+  .field { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .field__help { max-width: 60ch; }
+
+  .habit { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .habit__right { flex-direction: column; align-items: flex-start; gap: 18px; }
+  .habit__score { min-width: 0; }
+  .stat-inline { gap: 18px 32px; }
+}
+
+/* ------------------------------------------------------------------ phone */
 @media (max-width: 720px) {
   .app { grid-template-columns: 1fr; }
   .nav { display: none; }
@@ -66,13 +115,19 @@
     color: #fff;
     position: sticky; top: 0; z-index: 40;
   }
-  .topbar__meta { font-size: 12px; color: var(--text-on-ink-3); }
+  .topbar__guide {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--text-on-ink-2);
+    border: 1px solid var(--line-ink); border-radius: var(--r-sm);
+    padding: 6px 10px;
+  }
+  .topbar__guide svg { width: 15px; height: 15px; }
 
   .tabbar {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
-    background: rgba(255, 255, 255, 0.96);
+    background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(8px);
     border-top: 1px solid var(--line);
     padding-bottom: env(safe-area-inset-bottom);
@@ -104,39 +159,72 @@
   }
   .sheet.on .sheet__panel { transform: none; }
   .sheet__item {
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: center; gap: 12px; width: 100%;
     padding: 14px 4px; border-bottom: 1px solid var(--line-soft);
-    font-size: 15px; cursor: pointer;
+    font-size: 15px; cursor: pointer; background: none; border-left: 0; border-right: 0; border-top: 0;
+    text-align: left; color: var(--text);
   }
   .sheet__item:last-child { border-bottom: 0; }
-  .sheet__item svg { width: 16px; height: 16px; color: var(--steel); }
+  .sheet__item svg { width: 16px; height: 16px; color: var(--steel); flex: none; }
 
-  .view { padding: 24px 20px 104px; }
+  :root { --section-gap: 40px; }
+  .view { padding: 24px 20px 112px; }
   .t-page { font-size: 27px; }
-  .page-head { margin-bottom: 26px; }
-  .page-head__lead { font-size: 15px; }
-  .section { margin-top: 28px; padding-top: 28px; }
+  .page-head { margin-bottom: 32px; }
+  .page-head__lead { font-size: 16px; }
+  .page-head__visual { margin-top: 24px; }
+  .section__head { margin-bottom: 14px; }
+  .stat-inline { gap: 18px 28px; }
+  .stat-inline__item { max-width: none; }
+  .section__controls { width: 100%; }
+  .section__controls .segment { overflow-x: auto; max-width: 100%; }
+  .section__controls .field-inline { flex: 1 1 140px; }
+  .section__controls .select { width: 100%; }
 
-  .metrics { grid-template-columns: 1fr 1fr; }
-  .metric { padding: 16px; border-top: 1px solid var(--line-soft); }
-  .metric:nth-child(-n+2) { border-top: 0; }
-  .metric:nth-child(odd) { border-left: 0; }
-  .t-data-xl { font-size: 27px; }
-  .t-data-l { font-size: 24px; }
-
-  .grid-2, .grid-3 { grid-template-columns: 1fr; gap: 16px; }
-  .insight { padding: 20px; gap: 20px; }
-  .insight__statement { font-size: 15.5px; }
-  .contrib__row { grid-template-columns: 76px 1fr 60px; font-size: 12.5px; }
+  .panel__body { padding: 18px 18px; }
+  .panel__head { padding: 16px 18px; }
+  .panel__foot { padding: 14px 18px; }
+  .exp__body { padding: 20px 18px; }
+  .finding { padding: 24px 18px; }
+  .finding__sub { font-size: 15px; }
+  .source { padding: 20px 18px; }
+  .source__grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .habit { padding: 20px 18px; }
 
   .timeline { padding-left: 62px; }
   .timeline::before { left: 48px; }
   .tl-item__time { left: -62px; width: 40px; font-size: 12px; }
   .tl-item__mark { left: -18px; }
 
-  .field { grid-template-columns: 1fr; gap: 10px; }
-  .source { grid-template-columns: minmax(0,1fr) 80px; }
-  .source__sync { display: none; }
-  .panel__body { padding: 16px; }
-  .table th:nth-child(3), .table td:nth-child(3) { display: none; }
+  .habit__strip { gap: 2px; }
+  .habit__strip i { width: 6px; height: 16px; }
+
+  .guide-chapter { padding: 18px 0; }
+  .glossary__item { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .where { padding: 12px 8px; margin: 0 -8px; }
+
+  /* The walkthrough card sits still at the bottom rather than chasing the
+   * highlight around a small screen. */
+  .tour-card--sheet {
+    left: 12px !important; right: 12px !important;
+    bottom: calc(76px + env(safe-area-inset-bottom)); top: auto !important;
+    width: auto;
+  }
+  .tour-card__foot { flex-wrap: wrap; }
 }
+
+/* ------------------------------------------------------------ small phone */
+@media (max-width: 400px) {
+  .view { padding: 20px 16px 112px; }
+  .t-page { font-size: 25px; }
+  .metrics { grid-template-columns: minmax(0, 1fr); }
+  .metric:nth-child(n) { border-left: 0; border-top: 1px solid var(--line-soft); }
+  .metric:nth-child(1) { border-top: 0; }
+  .habit__strip i { width: 5px; }
+  .tabbar button { font-size: 10px; }
+  .section__controls .segment button { padding: 8px 10px; }
+}
+
+/* Nothing in the product is allowed to push the page sideways. */
+html, body { overflow-x: hidden; }
+.view, .section, .panel, .insight, .exp, .habit { max-width: 100%; }

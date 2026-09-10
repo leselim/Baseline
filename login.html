@@ -3,15 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sign in · Baseline</title>
+<title>Sign in to Baseline</title>
 <meta name="theme-color" content="#001D39">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/responsive.css">
 <style>
   body { background: var(--surface); }
   .auth { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
@@ -54,7 +55,7 @@
       </div>
       <div class="field-block">
         <label for="pw">Password</label>
-        <input class="input" id="pw" type="password" value="behaviour" autocomplete="current-password">
+        <input class="input" id="pw" type="password" autocomplete="current-password" placeholder="••••••••">
       </div>
 
       <a class="btn" href="index.html" style="margin-top:24px;width:100%;justify-content:center">Continue</a>
@@ -65,17 +66,36 @@
       </p>
     </div>
 
-    <p class="t-fine">Cape Town · Data stays in your account</p>
+    <p class="t-fine">Cape Town. Your record stays in your account.</p>
   </section>
 
   <aside class="auth__aside">
     <p class="auth__quote">The benchmark is not eight hours a night. It is what you normally do, and what happens when you don't.</p>
     <div class="auth__stat">
-      <div><span class="auth__statv">133</span><span class="auth__statl">Days recorded</span></div>
-      <div><span class="auth__statv">4</span><span class="auth__statl">Patterns tracked</span></div>
-      <div><span class="auth__statv">2</span><span class="auth__statl">Experiments run</span></div>
+      <div class="auth__statitem"><span class="auth__statv">133</span><span class="auth__statl">Days recorded</span></div>
+      <div class="auth__statitem"><span class="auth__statv">4</span><span class="auth__statl">Patterns tracked</span></div>
+      <div class="auth__statitem"><span class="auth__statv">2</span><span class="auth__statl">Experiments run</span></div>
     </div>
   </aside>
 </main>
+<script src="js/data.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/patterns.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/stats.js"></script>
+<script>
+  /* The same record the product runs on, so the sign in screen can never
+     quote a figure the rest of the application would disagree with. */
+  (function () {
+    var n = {
+      days: BL.data.days.length,
+      patterns: BL.patterns.all().length,
+      sources: BL.data.connectedSources
+    };
+    document.querySelectorAll('[data-stat]').forEach(function (el) {
+      el.textContent = n[el.getAttribute('data-stat')];
+    });
+  })();
+</script>
 </body>
 </html>
